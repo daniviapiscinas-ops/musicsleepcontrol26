@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Música para Dormir</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{min-height:100vh;background:linear-gradient(160deg,#080c14 0%,#0d1525 40%,#111827 100%);font-family:system-ui,sans-serif;overflow-x:hidden;color:#fff}
+  #stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--dur) ease-in-out var(--delay) infinite alternate}
+  @keyframes twinkle{from{opacity:.1}to{opacity:.85}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes wave{from{transform:scaleY(.45)}to{transform:scaleY(1)}}
+  @keyframes pulse-ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.7);opacity:0}}
+
+  .container{max-width:480px;margin:0 auto;padding:24px 16px 40px;position:relative;z-index:1}
+
+  .header{text-align:center;margin-bottom:28px}
+  .moon{font-size:52px;animation:float 4s ease-in-out infinite;display:inline-block;filter:drop-shadow(0 0 20px #c77dff88);transition:filter 1s}
+  .header h1{font-family:'Crimson Pro',Georgia,serif;font-size:27px;font-weight:600;margin:10px 0 4px;letter-spacing:-.02em;color:#ffffff}
+  .header p{color:rgba(255,255,255,.65);font-size:12px;font-family:'Space Mono',monospace}
+
+  #now-playing{background:linear-gradient(135deg,rgba(199,125,255,.15),rgba(255,255,255,.04));border:1px solid rgba(199,125,255,.35);border-radius:24px;padding:20px;margin-bottom:20px;display:none;position:relative;overflow:hidden}
+  #now-playing.active{display:block}
+  .np-glow{position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(199,125,255,.28),transparent 70%);pointer-events:none}
+  .np-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .np-label{font-size:9px;color:rgba(255,255,255,.65);font-family:'Space Mono',monospace;letter-spacing:.15em;margin-bottom:5px}
+  .np-title{font-family:'Crimson Pro',serif;font-size:20px;font-weight:600;color:#ffffff}
+  .np-emoji{font-size:38px}
+
+  .loading-badge{font-size:9px;padding:2px 7px;border-radius:10px;background:rgba(255,200,0,.15);color:#ffd060;border:1px solid rgba(255,200,0,.3);font-family:'Space Mono',monospace;margin-top:4px;display:none}
+  .loading-badge.show{display:inline-block}
+
+  .waveform{display:flex;align-items:center;gap:3px;height:28px;justify-content:center;margin:14px 0}
+  .wave-bar{width:3px;background:#c77dff;border-radius:2px;height:4px;transition:height .3s ease;transform-origin:bottom}
+  .wave-bar.playing{animation:wave var(--spd) ease-in-out var(--off) infinite alternate}
+
+  .controls{display:flex;justify-content:space-between;align-items:center}
+  .vol-section{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .ctrl-label{font-size:9px;color:rgba(255,255,255,.65);font-family:'Space Mono',monospace;letter-spacing:.1em}
+  input[type=range]{-webkit-appearance:none;width:110px;height:4px;background:linear-gradient(to right,#c77dff 70%,rgba(255,255,255,.15) 70%);border-radius:2px;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 0 8px #c77dff}
+  .vol-val{font-size:12px;color:#c77dff;font-family:'Space Mono',monospace;font-weight:700}
+
+  .play-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+  .pulse{position:absolute;inset:-8px;border-radius:50%;border:2px solid #c77dff;animation:pulse-ring 1.5s ease-out infinite;display:none;pointer-events:none}
+  .pulse.active{display:block}
+  #play-btn{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#c77dff,#9b5fcf);border:none;cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px #c77dff66;transition:transform .15s;line-height:1}
+  #play-btn:active{transform:scale(.92)}
+
+  .timer-display{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:60px}
+  #time-left{font-size:14px;color:rgba(255,255,255,.55);font-family:'Space Mono',monospace;font-weight:700}
+
+  .section-label{font-size:9px;color:rgba(255,255,255,.6);font-family:'Space Mono',monospace;letter-spacing:.15em;margin-bottom:10px}
+  .timer-row{display:flex;gap:8px;margin-bottom:20px}
+  .timer-btn{flex:1;padding:8px 4px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.65);font-size:11px;font-family:'Space Mono',monospace;cursor:pointer;transition:all .2s}
+  .timer-btn.active{background:rgba(199,125,255,.22);border-color:rgba(199,125,255,.45);color:#d9a8ff}
+
+  .cat-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px}
+  .cat-row::-webkit-scrollbar{display:none}
+  .cat-btn{white-space:nowrap;padding:7px 15px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.65);font-size:11px;font-family:'Space Mono',monospace;cursor:pointer;transition:all .2s}
+  .cat-btn.active{background:rgba(199,125,255,.22);border-color:rgba(199,125,255,.45);color:#d9a8ff}
+
+  .track-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .track-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px;cursor:pointer;transition:all .3s;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;user-select:none}
+  .track-card.active{transform:scale(1.02)}
+  .track-top{display:flex;justify-content:space-between;align-items:flex-start}
+  .track-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px}
+  .track-tag{font-size:9px;padding:4px 8px;border-radius:20px;font-family:'Space Mono',monospace;font-weight:700}
+  .track-name{font-family:'Crimson Pro',serif;font-size:15px;font-weight:600;color:#ffffff;margin-bottom:4px}
+  .track-hint{color:rgba(255,255,255,.58);font-size:10px;font-family:'Space Mono',monospace}
+  .track-wave{display:flex;align-items:center;gap:3px;height:22px}
+  .tw-bar{width:3px;border-radius:2px;height:4px;transition:height .3s;transform-origin:bottom}
+  .tw-bar.playing{animation:wave var(--spd) ease-in-out var(--off) infinite alternate}
+  .footer{text-align:center;margin-top:32px;color:rgba(255,255,255,.25);font-size:11px;font-family:'Space Mono',monospace}
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="moon" id="moon">🌙</div>
+    <h1>Música para Dormir</h1>
+    <p>Sonidos que calman la mente</p>
+  </div>
+
+  <div id="now-playing">
+    <div class="np-glow" id="np-glow"></div>
+    <div class="np-top">
+      <div>
+        <div class="np-label">REPRODUCIENDO AHORA</div>
+        <div class="np-title" id="np-title">—</div>
+        <div class="loading-badge" id="loading-badge">cargando…</div>
+      </div>
+      <div class="np-emoji" id="np-emoji"></div>
+    </div>
+    <div class="waveform" id="waveform">
+      <div class="wave-bar" style="--spd:.6s;--off:0s"></div>
+      <div class="wave-bar" style="--spd:.7s;--off:.07s"></div>
+      <div class="wave-bar" style="--spd:.5s;--off:.14s"></div>
+      <div class="wave-bar" style="--spd:.8s;--off:.21s"></div>
+      <div class="wave-bar" style="--spd:.6s;--off:.28s"></div>
+      <div class="wave-bar" style="--spd:.7s;--off:.35s"></div>
+      <div class="wave-bar" style="--spd:.5s;--off:.42s"></div>
+      <div class="wave-bar" style="--spd:.6s;--off:.49s"></div>
+    </div>
+    <div class="controls">
+      <div class="vol-section">
+        <div class="ctrl-label">VOLUMEN</div>
+        <input type="range" id="vol-slider" min="0" max="100" value="70" oninput="updateVolume(this.value)">
+        <div class="vol-val" id="vol-val">70%</div>
+      </div>
+      <div class="play-wrap">
+        <div class="pulse" id="pulse"></div>
+        <button id="play-btn" onclick="togglePlay()">⏸</button>
+      </div>
+      <div class="timer-display">
+        <div class="ctrl-label">TEMPORIZADOR</div>
+        <div id="time-left">∞</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">APAGAR EN</div>
+  <div class="timer-row">
+    <button class="timer-btn" onclick="setTimer(15,this)">15 min</button>
+    <button class="timer-btn" onclick="setTimer(30,this)">30 min</button>
+    <button class="timer-btn" onclick="setTimer(45,this)">45 min</button>
+    <button class="timer-btn" onclick="setTimer(60,this)">1 hora</button>
+    <button class="timer-btn active" onclick="setTimer(0,this)">∞</button>
+  </div>
+
+  <div class="cat-row" id="cat-row">
+    <button class="cat-btn active" onclick="filterCat('Todos',this)">Todos</button>
+    <button class="cat-btn" onclick="filterCat('Naturaleza',this)">Naturaleza</button>
+    <button class="cat-btn" onclick="filterCat('Ambiente',this)">Ambiente</button>
+    <button class="cat-btn" onclick="filterCat('Música',this)">Música</button>
+    <button class="cat-btn" onclick="filterCat('Meditación',this)">Meditación</button>
+  </div>
+
+  <div class="track-grid" id="track-grid"></div>
+  <div class="footer">✦ Dulces sueños ✦</div>
+</div>
+
+<script>
+/* ================================================================
+   PISTAS DE AUDIO
+   mp3Url = archivo MP3 real (externo o en tu repo GitHub)
+   sound  = generador Web Audio de respaldo (si el MP3 falla)
+
+   Para añadir TUS propios MP3:
+   1. Sube los archivos a tu repo en una carpeta "sounds/"
+   2. Cambia mp3Url a "sounds/tu-archivo.mp3"
+   Descarga MP3 gratis en: pixabay.com/music | freesound.org
+================================================================ */
+const tracks = [
+  {
+    id:1, title:"Lluvia Nocturna", cat:"Naturaleza", emoji:"🌧️", color:"#4a90d9",
+    freq:[.5,.8,.3,.6,.4,.7,.2,.5], sound:"rain",
+    mp3Url:"https://assets.mixkit.co/sfx/preview/mixkit-light-rain-loop-2393.mp3"
+  },
+  {
+    id:2, title:"Olas del Mar", cat:"Naturaleza", emoji:"🌊", color:"#2ec4b6",
+    freq:[.3,.6,.8,.4,.7,.5,.6,.3], sound:"ocean",
+    mp3Url:"https://assets.mixkit.co/sfx/preview/mixkit-ocean-waves-loop-1196.mp3"
+  },
+  {
+    id:3, title:"Bosque en Calma", cat:"Naturaleza", emoji:"🌲", color:"#52b788",
+    freq:[.2,.4,.3,.5,.2,.4,.3,.2], sound:"forest",
+    mp3Url:"https://assets.mixkit.co/sfx/preview/mixkit-forest-stream-ambience-1186.mp3"
+  },
+  {
+    id:4, title:"Ruido Blanco", cat:"Ambiente", emoji:"🌫️", color:"#9b8ea8",
+    freq:[.6,.6,.6,.6,.6,.6,.6,.6], sound:"white",
+    mp3Url:null
+  },
+  {
+    id:5, title:"Chimenea", cat:"Ambiente", emoji:"🔥", color:"#e76f51",
+    freq:[.4,.7,.5,.8,.3,.6,.5,.4], sound:"fire",
+    mp3Url:"https://assets.mixkit.co/sfx/preview/mixkit-campfire-crackles-1330.mp3"
+  },
+  {
+    id:6, title:"Piano Suave", cat:"Música", emoji:"🎹", color:"#c77dff",
+    freq:[.2,.5,.7,.3,.6,.4,.8,.2], sound:"piano",
+    mp3Url:"https://assets.mixkit.co/music/preview/mixkit-piano-reflections-22.mp3"
+  },
+  {
+    id:7, title:"Cuencos Tibetanos", cat:"Meditación", emoji:"🪘", color:"#f4a261",
+    freq:[.3,.2,.5,.8,.5,.2,.3,.1], sound:"bowl",
+    mp3Url:null
+  },
+  {
+    id:8, title:"Delta Binaural", cat:"Meditación", emoji:"🧠", color:"#457b9d",
+    freq:[.1,.2,.1,.2,.1,.2,.1,.2], sound:"binaural",
+    mp3Url:null
+  },
+];
+
+/* ================================================================
+   ESTADO
+================================================================ */
+let selectedTrack  = null;
+let isPlaying      = false;
+let activeCategory = "Todos";
+let volume         = 0.7;
+let timerMinutes   = 0;
+let timerInterval  = null;
+let timeLeft       = null;
+
+/* ================================================================
+   MOTOR DE AUDIO
+   — HTML5 Audio para MP3
+   — Web Audio API como generador / respaldo
+================================================================ */
+let currentAudio  = null;   // HTMLAudioElement
+let audioCtx      = null;
+let masterGain    = null;
+let waNodes       = [];     // nodos Web Audio activos
+let pianoInterval = null;
+
+function initCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = volume;
+    masterGain.connect(audioCtx.destination);
+  }
+  return audioCtx;
+}
+
+/* Detiene TODO lo que esté sonando */
+function stopEverything() {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = '';
+    currentAudio = null;
+  }
+  if (pianoInterval) { clearInterval(pianoInterval); pianoInterval = null; }
+  waNodes.forEach(n => { try{n.stop(0);}catch(e){} try{n.disconnect();}catch(e){} });
+  waNodes = [];
+  /* siempre dejar el contexto en estado 'running' para reiniciar limpio */
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+/* Arranca una pista desde cero */
+function startTrack(track) {
+  stopEverything();
+  track.mp3Url ? _playMP3(track) : _playWebAudio(track);
+}
+
+function _playMP3(track) {
+  document.getElementById('loading-badge').classList.add('show');
+  currentAudio = new Audio();
+  currentAudio.crossOrigin = 'anonymous';
+  currentAudio.loop   = true;
+  currentAudio.volume = volume;
+  currentAudio.src    = track.mp3Url;
+
+  currentAudio.addEventListener('canplaythrough', () => {
+    document.getElementById('loading-badge').classList.remove('show');
+  }, {once:true});
+
+  currentAudio.play().catch(() => {
+    /* MP3 no disponible → fallback Web Audio */
+    document.getElementById('loading-badge').classList.remove('show');
+    currentAudio = null;
+    _playWebAudio(track);
+  });
+}
+
+function _playWebAudio(track) {
+  const ctx = initCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  _generate(track.sound, ctx, masterGain);
+}
+
+/* ================================================================
+   PAUSA / REANUDACIÓN — corregido
+================================================================ */
+function togglePlay() {
+  if (!selectedTrack) return;
+  isPlaying = !isPlaying;
+
+  if (isPlaying) {
+    /* ── REANUDAR ── */
+    if (currentAudio) {
+      /* MP3: simplemente .play() */
+      currentAudio.play();
+    } else if (audioCtx && audioCtx.state === 'suspended') {
+      /* Web Audio pausado → reanudar contexto (nodos siguen vivos) */
+      audioCtx.resume();
+    } else {
+      /* No había nada cargado → arrancar de nuevo */
+      startTrack(selectedTrack);
+    }
+  } else {
+    /* ── PAUSAR ── */
+    if (currentAudio) {
+      currentAudio.pause();           /* pausa real del MP3 */
+    } else if (audioCtx && audioCtx.state === 'running') {
+      audioCtx.suspend();             /* congela Web Audio (no destruye nodos) */
+    }
+  }
+
+  updatePlayBtn();
+  updateWaveform();
+  renderTracks();
+}
+
+/* Seleccionar pista */
+function selectTrack(track) {
+  if (selectedTrack && selectedTrack.id === track.id) {
+    togglePlay();   /* misma pista → toggle */
+    return;
+  }
+  selectedTrack = track;
+  isPlaying = true;
+  startTrack(track);
+  updateNowPlaying();
+  renderTracks();
+}
+
+/* ================================================================
+   GENERADORES WEB AUDIO
+================================================================ */
+function _noise(ctx, sec) {
+  const b = ctx.createBuffer(1, ctx.sampleRate*sec, ctx.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  return b;
+}
+function _loop(ctx, buf, dest) {
+  const s = ctx.createBufferSource();
+  s.buffer=buf; s.loop=true; s.connect(dest); s.start();
+  return s;
+}
+function _bq(ctx, type, freq, q) {
+  const f=ctx.createBiquadFilter();
+  f.type=type; f.frequency.value=freq;
+  if(q!==undefined) f.Q.value=q;
+  return f;
+}
+function _lfo(ctx, freq, depth, dest) {
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  g.gain.value=depth; o.frequency.value=freq; o.type='sine';
+  o.connect(g); g.connect(dest); o.start();
+  return o;
+}
+
+function _generate(type, ctx, out) {
+  switch(type) {
+    case 'rain': {
+      const b=_noise(ctx,4), hp=_bq(ctx,'highpass',1600), lp=_bq(ctx,'lowpass',9000);
+      const g=ctx.createGain(); g.gain.value=0.9;
+      const s=_loop(ctx,b,hp); hp.connect(lp); lp.connect(g); g.connect(out);
+      const l=_lfo(ctx,0.28,0.18,g.gain);
+      waNodes.push(s,l); break;
+    }
+    case 'ocean': {
+      const b=_noise(ctx,6), lp=_bq(ctx,'lowpass',650), hp=_bq(ctx,'highpass',70);
+      const g=ctx.createGain(); g.gain.value=0.85;
+      const s=_loop(ctx,b,lp); lp.connect(hp); hp.connect(g); g.connect(out);
+      const l=_lfo(ctx,0.11,0.55,g.gain);
+      const b2=_noise(ctx,3), hi=_bq(ctx,'highpass',2200);
+      const g2=ctx.createGain(); g2.gain.value=0.14;
+      const s2=_loop(ctx,b2,hi); hi.connect(g2); g2.connect(out);
+      const l2=_lfo(ctx,0.14,0.12,g2.gain);
+      waNodes.push(s,s2,l,l2); break;
+    }
+    case 'forest': {
+      const b=_noise(ctx,5), bp=_bq(ctx,'bandpass',420,0.5), lp=_bq(ctx,'lowpass',2200);
+      const g=ctx.createGain(); g.gain.value=0.32;
+      const s=_loop(ctx,b,bp); bp.connect(lp); lp.connect(g); g.connect(out);
+      const l=_lfo(ctx,0.07,0.14,g.gain);
+      const b2=_noise(ctx,3), hi=_bq(ctx,'highpass',3200);
+      const g2=ctx.createGain(); g2.gain.value=0.07;
+      const s2=_loop(ctx,b2,hi); hi.connect(g2); g2.connect(out);
+      waNodes.push(s,s2,l); break;
+    }
+    case 'white': {
+      const b=_noise(ctx,3), g=ctx.createGain(); g.gain.value=0.55;
+      const s=_loop(ctx,b,g); g.connect(out);
+      waNodes.push(s); break;
+    }
+    case 'fire': {
+      const b=_noise(ctx,5), lp=_bq(ctx,'lowpass',420);
+      const g=ctx.createGain(); g.gain.value=0.7;
+      const s=_loop(ctx,b,lp); lp.connect(g); g.connect(out);
+      const l=_lfo(ctx,1.6,0.38,g.gain);
+      const b2=_noise(ctx,2), bp=_bq(ctx,'bandpass',1100,2);
+      const g2=ctx.createGain(); g2.gain.value=0.11;
+      const s2=_loop(ctx,b2,bp); bp.connect(g2); g2.connect(out);
+      waNodes.push(s,s2,l); break;
+    }
+    case 'piano': {
+      const scale=[261.63,293.66,329.63,392,440,523.25,392,329.63,261.63,246.94];
+      let step=0;
+      function note() {
+        if (!audioCtx||audioCtx.state==='suspended') return;
+        const osc=ctx.createOscillator(), env=ctx.createGain();
+        const dly=ctx.createDelay(3); dly.delayTime.value=0.55;
+        const dlyG=ctx.createGain(); dlyG.gain.value=0.22;
+        osc.type='triangle'; osc.frequency.value=scale[step%scale.length];
+        env.gain.setValueAtTime(0,ctx.currentTime);
+        env.gain.linearRampToValueAtTime(0.22,ctx.currentTime+0.06);
+        env.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+2.8);
+        osc.connect(env);
+        env.connect(out); env.connect(dly); dly.connect(dlyG); dlyG.connect(out);
+        osc.start(); osc.stop(ctx.currentTime+3);
+        waNodes.push(osc); step++;
+      }
+      note();
+      pianoInterval=setInterval(()=>{ if(isPlaying&&!currentAudio) note(); },2500);
+      break;
+    }
+    case 'bowl': {
+      [174,285,396,528].forEach((f,i)=>{
+        const osc=ctx.createOscillator(), g=ctx.createGain();
+        g.gain.value=0.09; osc.type='sine'; osc.frequency.value=f;
+        osc.connect(g); g.connect(out); osc.start();
+        const l=_lfo(ctx,0.45+i*0.1,0.045,g.gain);
+        waNodes.push(osc,l);
+      }); break;
+    }
+    case 'binaural': {
+      const merger=ctx.createChannelMerger(2); merger.connect(out);
+      const oscL=ctx.createOscillator(), oscR=ctx.createOscillator();
+      const gL=ctx.createGain(), gR=ctx.createGain();
+      gL.gain.value=0.28; gR.gain.value=0.28;
+      oscL.frequency.value=200; oscR.frequency.value=202;
+      oscL.type='sine'; oscR.type='sine';
+      oscL.connect(gL); gL.connect(merger,0,0);
+      oscR.connect(gR); gR.connect(merger,0,1);
+      oscL.start(); oscR.start();
+      const b=_noise(ctx,4), lp=_bq(ctx,'lowpass',320);
+      const ng=ctx.createGain(); ng.gain.value=0.09;
+      const s=_loop(ctx,b,lp); lp.connect(ng); ng.connect(out);
+      waNodes.push(oscL,oscR,s); break;
+    }
+  }
+}
+
+/* ================================================================
+   ACTUALIZAR UI
+================================================================ */
+function updateNowPlaying() {
+  const np=document.getElementById('now-playing');
+  np.className='active';
+  const c=selectedTrack.color;
+  np.style.background=`linear-gradient(135deg,${c}28,rgba(255,255,255,.04))`;
+  np.style.border=`1px solid ${c}55`;
+  np.style.boxShadow=`0 8px 32px ${c}28`;
+  document.getElementById('np-glow').style.background=`radial-gradient(circle,${c}35,transparent 70%)`;
+  document.getElementById('np-title').textContent=selectedTrack.title;
+  document.getElementById('np-emoji').textContent=selectedTrack.emoji;
+  document.getElementById('moon').style.filter=`drop-shadow(0 0 22px ${c}99)`;
+  document.querySelectorAll('#waveform .wave-bar').forEach(b=>b.style.background=c);
+  updateWaveform();
+  updatePlayBtn();
+}
+
+function updateWaveform() {
+  document.querySelectorAll('#waveform .wave-bar').forEach((b,i)=>{
+    if(isPlaying){b.style.height=(selectedTrack.freq[i]*28)+'px';b.classList.add('playing');}
+    else{b.style.height='4px';b.classList.remove('playing');}
+  });
+}
+
+function updatePlayBtn() {
+  const btn=document.getElementById('play-btn');
+  const pulse=document.getElementById('pulse');
+  const c=selectedTrack?selectedTrack.color:'#c77dff';
+  btn.textContent=isPlaying?'⏸':'▶';
+  btn.style.background=`linear-gradient(135deg,${c},${c}aa)`;
+  btn.style.boxShadow=`0 4px 22px ${c}77`;
+  pulse.style.borderColor=c;
+  isPlaying?pulse.classList.add('active'):pulse.classList.remove('active');
+}
+
+function updateVolume(val) {
+  volume=val/100;
+  document.getElementById('vol-val').textContent=val+'%';
+  const c=selectedTrack?selectedTrack.color:'#c77dff';
+  document.getElementById('vol-slider').style.background=
+    `linear-gradient(to right,${c} ${val}%,rgba(255,255,255,.15) ${val}%)`;
+  if(currentAudio) currentAudio.volume=volume;
+  if(masterGain&&audioCtx) masterGain.gain.setTargetAtTime(volume,audioCtx.currentTime,0.1);
+}
+
+function setTimer(mins,btn) {
+  document.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  timerMinutes=mins;
+  clearInterval(timerInterval);
+  const tl=document.getElementById('time-left');
+  if(mins===0){tl.textContent='∞';tl.style.color='rgba(255,255,255,.55)';return;}
+  timeLeft=mins*60;
+  const c=selectedTrack?selectedTrack.color:'#c77dff';
+  tl.style.color=c;
+  timerInterval=setInterval(()=>{
+    if(!isPlaying)return;
+    timeLeft--;
+    const m=Math.floor(timeLeft/60),s=timeLeft%60;
+    tl.textContent=m+':'+(s<10?'0':'')+s;
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      isPlaying=false; stopEverything();
+      updatePlayBtn();updateWaveform();renderTracks();
+      tl.textContent='∞';tl.style.color='rgba(255,255,255,.55)';
+    }
+  },1000);
+}
+
+function filterCat(cat,btn) {
+  activeCategory=cat;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTracks();
+}
+
+/* ================================================================
+   RENDER TARJETAS
+================================================================ */
+function renderTracks() {
+  const grid=document.getElementById('track-grid');
+  grid.innerHTML='';
+  const list=activeCategory==='Todos'?tracks:tracks.filter(t=>t.cat===activeCategory);
+  list.forEach(track=>{
+    const isActive=selectedTrack&&selectedTrack.id===track.id;
+    const card=document.createElement('div');
+    card.className='track-card'+(isActive?' active':'');
+    card.style.background=isActive
+      ?`linear-gradient(135deg,${track.color}28,${track.color}14)`
+      :'rgba(255,255,255,.05)';
+    card.style.border=`1px solid ${isActive?track.color+'66':'rgba(255,255,255,.1)'}`;
+    card.style.boxShadow=isActive?`0 0 22px ${track.color}33`:'none';
+    const waveHtml=isActive
+      ?`<div class="track-wave">${track.freq.map((h,i)=>
+          `<div class="tw-bar${isPlaying?' playing':''}" style="background:${track.color};height:${isPlaying?h*22:4}px;--spd:${.6+i*.1}s;--off:${i*.07}s"></div>`
+        ).join('')}</div>`
+      :`<div class="track-hint">Toca para escuchar</div>`;
+    card.innerHTML=`
+      <div class="track-top">
+        <div class="track-icon" style="background:${track.color}22;border:1px solid ${track.color}44">${track.emoji}</div>
+        <div class="track-tag" style="background:${track.color}22;color:${track.color};border:1px solid ${track.color}44">${track.cat}</div>
+      </div>
+      <div>
+        <div class="track-name">${track.title}</div>
+        ${waveHtml}
+      </div>`;
+    card.onclick=()=>selectTrack(track);
+    grid.appendChild(card);
+  });
+}
+
+/* ================================================================
+   ESTRELLAS
+================================================================ */
+(function(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<65;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const sz=Math.random()*2+.4;
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;`
+      +`width:${sz}px;height:${sz}px;`
+      +`--dur:${Math.random()*3+2}s;--delay:${Math.random()*4}s;`;
+    c.appendChild(s);
+  }
+})();
+
+renderTracks();
+</script>
+</body>
+</html>
